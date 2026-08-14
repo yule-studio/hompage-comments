@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
  * the address is already published on the site.
  */
 @ConfigurationProperties(prefix = "resume.mask")
-public record MaskProperties(List<String> patterns, String fillColor) {
+public record MaskProperties(List<String> patterns, String fillColor, Float opacity) {
 
     /**
      * Korean mobile and landline numbers, separated by hyphen, space, dot or
@@ -36,8 +36,14 @@ public record MaskProperties(List<String> patterns, String fillColor) {
             patterns = List.of(KR_PHONE);
         }
         if (fillColor == null || fillColor.isBlank()) {
-            fillColor = "#111111";
+            fillColor = "#9AA0A6";
         }
+        // The panel sits on an already-erased region, so opacity is purely how
+        // the cover looks — it is never what keeps the text hidden.
+        if (opacity == null) {
+            opacity = 0.72f;
+        }
+        opacity = Math.clamp(opacity, 0f, 1f);
     }
 
     public List<Pattern> compiled() {

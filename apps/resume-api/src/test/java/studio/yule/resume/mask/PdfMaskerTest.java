@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class PdfMaskerTest {
 
-    private final PdfMasker masker = new PdfMasker(new MaskProperties(null, null));
+    private final PdfMasker masker = new PdfMasker(new MaskProperties(null, null, null));
 
     /**
      * The whole point of the class. A black rectangle over a phone number is not
@@ -93,6 +93,38 @@ class PdfMaskerTest {
     }
 
     /**
+     * Only the page with the match is rasterised. This is the difference
+     * between a two-second download and a forty-second one — and it is
+     * observable, so it is pinned here rather than left to drift back.
+     */
+    @Test
+    void pagesWithNoMatchKeepTheirText(@TempDir Path dir) throws IOException {
+        Path source = writePages(dir,
+                new String[]{"Tel : 010-2483-0509"},
+                new String[]{"EXPERIENCE", "Backend Engineer at ACME"});
+
+        PdfMasker.Result result = masker.mask(source, null);
+
+        assertThat(result.hits()).isEqualTo(1);
+        assertThat(pageText(result.pdf(), 1)).doesNotContain("2483");
+        // untouched, so it is still selectable text rather than a picture of it
+        assertThat(pageText(result.pdf(), 2)).contains("Backend Engineer at ACME");
+    }
+
+    /**
+     * The masked page must not keep a text layer — that is the whole guarantee,
+     * and a shape drawn over live glyphs would still pass a visual check.
+     */
+    @Test
+    void theMaskedPageHasNoTextLayerAtAll(@TempDir Path dir) throws IOException {
+        Path source = writePages(dir, new String[]{"Oh Yuchan", "Tel : 010-2483-0509"});
+
+        PdfMasker.Result result = masker.mask(source, null);
+
+        assertThat(pageText(result.pdf(), 1).replaceAll("\\s", "")).isEmpty();
+    }
+
+    /**
      * Runs against the real file when it is where the dev setup puts it, and
      * skips otherwise so the suite stays green on a clean checkout.
      */
@@ -110,20 +142,27 @@ class PdfMaskerTest {
     /* ── helpers ────────────────────────────────────────────── */
 
     private Path write(Path dir, String... lines) throws IOException {
+        return writePages(dir, lines);
+    }
+
+    /** One String[] per page. */
+    private Path writePages(Path dir, String[]... pages) throws IOException {
         Path file = dir.resolve("source.pdf");
         try (PDDocument doc = new PDDocument()) {
-            PDPage page = new PDPage();
-            doc.addPage(page);
-            try (PDPageContentStream content = new PDPageContentStream(doc, page)) {
-                content.beginText();
-                content.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
-                content.setLeading(18f);
-                content.newLineAtOffset(60, 700);
-                for (String line : List.of(lines)) {
-                    content.showText(line);
-                    content.newLine();
+            for (String[] lines : pages) {
+                PDPage page = new PDPage();
+                doc.addPage(page);
+                try (PDPageContentStream content = new PDPageContentStream(doc, page)) {
+                    content.beginText();
+                    content.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+                    content.setLeading(18f);
+                    content.newLineAtOffset(60, 700);
+                    for (String line : List.of(lines)) {
+                        content.showText(line);
+                        content.newLine();
+                    }
+                    content.endText();
                 }
-                content.endText();
             }
             doc.save(file.toFile());
         }
@@ -133,6 +172,16 @@ class PdfMaskerTest {
     private String textOf(byte[] pdf) throws IOException {
         try (PDDocument doc = Loader.loadPDF(pdf)) {
             return new PDFTextStripper().getText(doc);
+        }
+    }
+
+    /** 1-based, like the stripper's own page numbering. */
+    private String pageText(byte[] pdf, int page) throws IOException {
+        try (PDDocument doc = Loader.loadPDF(pdf)) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setStartPage(page);
+            stripper.setEndPage(page);
+            return stripper.getText(doc);
         }
     }
 }
