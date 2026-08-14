@@ -1,0 +1,17 @@
+# secrets — the GitHub token lives here and must never be committed
+.env
+*.env
+!.env.example
+
+# gradle / build
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# ide
+.idea/
+*.iml
+.vscode/
+
+# os
+.DS_Store

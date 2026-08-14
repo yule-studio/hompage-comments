@@ -1,0 +1,23 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: comment-api
+
+github:
+  owner: ${GITHUB_OWNER:yule-studio}
+  repo: ${GITHUB_REPO:hompage-comments}
+  # Fine-grained PAT — env only, never committed. See .env.example.
+  token: ${GITHUB_TOKEN:}
+  branch: ${GITHUB_BRANCH:main}
+  # Image attachments are committed into the repo, so this needs Contents:write.
+  attachments-enabled: ${GITHUB_ATTACHMENTS:true}
+
+app:
+  # Origins allowed to call the API (comma separated).
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5273,http://localhost:5173}
+
+logging:
+  level:
+    studio.yule.comments: INFO
