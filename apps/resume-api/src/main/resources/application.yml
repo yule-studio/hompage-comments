@@ -1,0 +1,39 @@
+server:
+  port: ${PORT:8081}
+  # A masked page render is a few MB; don't let Tomcat cut it off.
+  tomcat:
+    max-swallow-size: -1
+
+spring:
+  application:
+    name: resume-api
+  datasource:
+    # A file, not a server. Holds the download log and nothing else.
+    url: jdbc:sqlite:${RESUME_DB:./data/resume.db}
+    driver-class-name: org.sqlite.JDBC
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+resume:
+  # Absolute path to the résumé as authored. This file must NOT be reachable
+  # from the public site — if it is, the masking is decoration.
+  source: ${RESUME_SOURCE:}
+  filename: ${RESUME_FILENAME:오유찬_이력서.pdf}
+  mask:
+    # Empty → the built-in Korean phone-number pattern. Add entries to hide
+    # more; each is a Java regex matched against the page's text.
+    patterns: ${RESUME_MASK_PATTERNS:}
+    fill-color: ${RESUME_MASK_COLOR:#111111}
+
+app:
+  # Only enable behind a reverse proxy that OVERWRITES X-Forwarded-For.
+  trust-proxy: ${TRUST_PROXY:false}
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5273,http://localhost:5173}
+  # Unset → GET /api/resume/downloads answers 404 instead of listing anything.
+  admin-token: ${ADMIN_TOKEN:}
+
+logging:
+  level:
+    studio.yule.resume: INFO

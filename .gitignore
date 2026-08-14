@@ -15,3 +15,9 @@ build/
 
 # os
 .DS_Store
+
+# resume-api: download log (other people's names and emails) and any local
+# copy of the source résumé. Neither belongs in the repo.
+data/
+*.db
+*.pdf
