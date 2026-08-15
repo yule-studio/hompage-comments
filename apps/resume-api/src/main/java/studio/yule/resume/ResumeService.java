@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import studio.yule.resume.mask.PdfMasker;
+import studio.yule.resume.mask.PdfStamper;
 import studio.yule.resume.store.DownloadLog;
 import studio.yule.resume.store.DownloadRecord;
 
@@ -29,15 +29,15 @@ public class ResumeService {
             DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("Asia/Seoul"));
 
     private final DownloadLog downloads;
-    private final PdfMasker masker;
+    private final PdfStamper stamper;
     private final Path source;
     private final String filename;
 
-    public ResumeService(DownloadLog downloads, PdfMasker masker,
+    public ResumeService(DownloadLog downloads, PdfStamper stamper,
                          @Value("${resume.source:}") String source,
                          @Value("${resume.filename:오유찬_이력서.pdf}") String filename) {
         this.downloads = downloads;
-        this.masker = masker;
+        this.stamper = stamper;
         this.source = (source == null || source.isBlank()) ? null : Path.of(source);
         this.filename = filename;
     }
@@ -51,7 +51,7 @@ public class ResumeService {
         return filename;
     }
 
-    /** The masked PDF and the serial it was stamped with. */
+    /** The stamped PDF and the serial it carries. */
     public record Issued(long serial, byte[] pdf) {}
 
     public Issued issue(DownloadRecord request) throws IOException {
@@ -60,26 +60,9 @@ public class ResumeService {
         String stamp = "발급 #%d · %s · %s"
                 .formatted(serial, STAMP_DATE.format(request.createdAt()), request.name());
 
-        PdfMasker.Result result = masker.mask(source, stamp);
+        byte[] pdf = stamper.stamp(source, stamp);
 
-        /*
-         * Zero hits means the source changed shape and the patterns no longer
-         * find anything — the file would go out with the phone number intact.
-         * Refusing is the only safe answer: this endpoint exists to mask.
-         */
-        if (result.hits() == 0) {
-            throw new NothingMaskedException();
-        }
-
-        log.info("resume issued serial={} to={} <{}> hits={}",
-                serial, request.name(), request.email(), result.hits());
-        return new Issued(serial, result.pdf());
-    }
-
-    /** Raised when the masking patterns matched nothing in the source. */
-    public static class NothingMaskedException extends RuntimeException {
-        public NothingMaskedException() {
-            super("이력서에서 마스킹할 항목을 찾지 못했습니다.");
-        }
+        log.info("resume issued serial={} to={} <{}>", serial, request.name(), request.email());
+        return new Issued(serial, pdf);
     }
 }

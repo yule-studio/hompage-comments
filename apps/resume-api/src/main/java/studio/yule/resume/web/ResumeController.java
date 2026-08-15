@@ -96,12 +96,6 @@ public class ResumeController {
                 .toList();
     }
 
-    @ExceptionHandler(ResumeService.NothingMaskedException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public String nothingMasked(ResumeService.NothingMaskedException e) {
-        return e.getMessage();
-    }
-
     private void requireEnabled() {
         if (!resume.enabled()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
